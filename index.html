@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#4a90e2">
     <meta name="description" content="Track your menstrual cycles using the calendar method">
     <title>Calendar Method Tracker</title>
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./responsive-fix.css">
     <link rel="apple-touch-icon" href="icon-192x192.png">
@@ -55,7 +55,7 @@
       // Register service worker
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
+          navigator.serviceWorker.register('./sw.js', { scope: './' })
             .then(registration => {
               console.log('ServiceWorker registration successful');
             })

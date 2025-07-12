@@ -1,13 +1,13 @@
-const CACHE_NAME = 'calendar-method-tracker-v1';
+const CACHE_NAME = 'calendar-method-tracker-v2';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/script.js',
-  '/styles.css',
-  '/responsive-fix.css',
-  '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
+  './',
+  './index.html',
+  './script.js',
+  './styles.css',
+  './responsive-fix.css',
+  './manifest.json',
+  './icon-192x192.png',
+  './icon-512x512.png',
   'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'
 ];
 
