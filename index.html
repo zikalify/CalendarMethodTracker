@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4a90e2">
+    <meta name="description" content="Track your menstrual cycles using the calendar method">
+    <title>Calendar Method Tracker</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./responsive-fix.css">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+</head>
+<body>
+    <div class="container">
+        <h1>Calendar Method Tracker</h1>
+        
+        <div class="section">
+            <h2>Log Period Start</h2>
+            <div class="input-section">
+                <label for="periodDate">Period Start Date:</label>
+                <input type="date" id="periodDate" required>
+                <button onclick="logPeriod()">Log Period</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Cycle Statistics</h2>
+            <div id="stats" class="stats">
+                <p>Log at least 2 periods to see statistics</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2>Period History</h2>
+                <div class="action-buttons">
+                    <button onclick="exportToCSV()" class="export-btn" title="Export to CSV">
+                        <span class="btn-icon">📥</span> Export
+                    </button>
+                    <label class="import-btn" title="Import from CSV">
+                        <span class="btn-icon">📤</span> Import
+                        <input type="file" id="importFile" accept=".csv" style="display: none;">
+                    </label>
+                </div>
+            </div>
+            <div id="periodHistory" class="period-history">
+                <p>No periods logged yet</p>
+            </div>
+            <p class="hint">💡 <strong>Tip:</strong> Use the "Pause" toggle to exclude periods from statistics when you're not tracking (e.g., during pregnancy, breastfeeding, or hormonal birth control use). This helps maintain accurate cycle predictions.</p>
+        </div>
+    </div>
+    <script src="./script.js"></script>
+    <script>
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('ServiceWorker registration successful');
+            })
+            .catch(err => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
+    </script>
+</body>
+</html>
