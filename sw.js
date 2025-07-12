@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calendar-method-tracker-v4';
+const CACHE_NAME = 'calendar-method-tracker-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -41,6 +41,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
+
+  // Handle favicon.ico requests
+  if (event.request.url.endsWith('/favicon.ico')) {
+    return event.respondWith(
+      caches.match('./icon-192x192.png')
+        .then(response => response || new Response(null, { status: 204 }))
+    );
+  }
 
   // Handle navigation requests (for SPA)
   if (event.request.mode === 'navigate') {
