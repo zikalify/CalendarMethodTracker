@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calendar-method-tracker-v2';
+const CACHE_NAME = 'calendar-method-tracker-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
