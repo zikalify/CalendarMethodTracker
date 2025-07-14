@@ -235,7 +235,8 @@ function updateStatistics(periods) {
         if (!mostRecentPeriod.paused) {
             const today = new Date(); // Local time is default
             const lastPeriod = parseLocalDate(validPeriods[0].date);
-            daysInCurrentCycle = Math.floor((today - lastPeriod) / (1000 * 60 * 60 * 24));
+            // Add 1 to make the first day of the cycle day 1 instead of day 0
+            daysInCurrentCycle = Math.floor((today - lastPeriod) / (1000 * 60 * 60 * 24)) + 1;
         }
     }
     
