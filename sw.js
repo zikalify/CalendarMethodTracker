@@ -1,8 +1,9 @@
-const CACHE_NAME = 'calendar-method-tracker-v9';
+const CACHE_NAME = 'calendar-method-tracker-v10';
+const FONT_CACHE_NAME = 'fonts-v2';
+
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './offline.html',
   './script.js',
   './styles.css',
   './responsive-fix.css',
@@ -11,131 +12,168 @@ const ASSETS_TO_CACHE = [
   './icon-512x512.png'
 ];
 
-const FONT_CACHE_NAME = 'fonts-v1';
 const FONTS_TO_CACHE = [
+  'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
   'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmSU5fBBc4.woff2',
   'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff2'
 ];
 
-// Install event - cache all static assets and fonts
+// Install event - cache all assets
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
-      .then(() => {
-        return caches.open(FONT_CACHE_NAME)
-          .then((cache) => {
-            return cache.addAll(FONTS_TO_CACHE);
-          });
-      })
-  );
+  console.log('[SW] Installing service worker...');
   
-  // Activate the new service worker immediately
-  self.skipWaiting();
-});
-
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
+    Promise.all([
+      // Cache main assets
+      caches.open(CACHE_NAME).then((cache) => {
+        console.log('[SW] Caching app assets');
+        return cache.addAll(ASSETS_TO_CACHE);
+      }),
+      // Cache fonts
+      caches.open(FONT_CACHE_NAME).then((cache) => {
+        console.log('[SW] Caching fonts');
+        return cache.addAll(FONTS_TO_CACHE).catch(err => {
+          console.warn('[SW] Some fonts failed to cache:', err);
+          // Don't fail installation if fonts fail
+          return Promise.resolve();
+        });
+      })
+    ]).then(() => {
+      console.log('[SW] Installation complete');
+      return self.skipWaiting();
     })
   );
 });
 
-// Fetch event - serve from cache, falling back to network
+// Activate event - clean up old caches
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating service worker...');
+  
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME && cache !== FONT_CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cache);
+            return caches.delete(cache);
+          }
+        })
+      );
+    }).then(() => {
+      console.log('[SW] Activation complete');
+      return self.clients.claim();
+    })
+  );
+});
+
+// Fetch event - offline-first strategy
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests and non-http(s) requests
-  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
+  const { request } = event;
+  
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
     return;
   }
 
-  // Handle favicon.ico requests
-  if (event.request.url.endsWith('/favicon.ico')) {
-    return event.respondWith(
+  // Skip non-http(s) requests
+  if (!request.url.startsWith('http')) {
+    return;
+  }
+
+  // Handle favicon requests
+  if (request.url.endsWith('/favicon.ico')) {
+    event.respondWith(
       caches.match('./icon-192x192.png')
         .then(response => response || new Response(null, { status: 204 }))
     );
+    return;
   }
-  
-  // Handle font requests with cache then network strategy
-  if (event.request.url.includes('fonts.gstatic.com')) {
-    return event.respondWith(
-      caches.match(event.request, { cacheName: FONT_CACHE_NAME })
+
+  // Handle font requests - cache first, then network
+  if (request.url.includes('fonts.googleapis.com') || request.url.includes('fonts.gstatic.com')) {
+    event.respondWith(
+      caches.match(request, { cacheName: FONT_CACHE_NAME })
         .then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
           
-          // If not in cache, fetch from network and cache it
-          return fetch(event.request).then((response) => {
-            // Don't cache invalid responses
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
+          return fetch(request).then((response) => {
+            if (response && response.status === 200) {
+              const responseToCache = response.clone();
+              caches.open(FONT_CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
             }
-            
-            // Clone the response before putting it in cache
-            const responseToCache = response.clone();
-            
-            caches.open(FONT_CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-            
             return response;
+          }).catch(() => {
+            // Return empty response if offline and not cached
+            return new Response('', { status: 200, statusText: 'OK' });
           });
         })
     );
+    return;
   }
 
-  // Handle navigation requests (for SPA)
-  if (event.request.mode === 'navigate') {
-    return event.respondWith(
+  // Handle navigation requests (for the app itself)
+  if (request.mode === 'navigate') {
+    event.respondWith(
       caches.match('./index.html')
-        .then(response => response || fetch(event.request))
-        .catch(() => caches.match('./offline.html'))
-    );
-  }
-
-  // For all other requests, try cache first, then network
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached response if found
-        if (response) {
-          return response;
-        }
-        
-        // Clone the request
-        const fetchRequest = event.request.clone();
-        
-        // Make network request
-        return fetch(fetchRequest).then(
-          (response) => {
-            // Check if we received a valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            // Cache the response
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
+        .then(response => {
+          if (response) {
             return response;
           }
-        );
+          return fetch(request).catch(() => {
+            return caches.match('./index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // For all other requests: Cache first, fall back to network, then fail gracefully
+  event.respondWith(
+    caches.match(request)
+      .then((cachedResponse) => {
+        if (cachedResponse) {
+          // Return cached version and update cache in background
+          fetch(request).then((response) => {
+            if (response && response.status === 200 && response.type === 'basic') {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+          }).catch(() => {
+            // Network failed, but we already have cached version
+          });
+          
+          return cachedResponse;
+        }
+        
+        // Not in cache, try network
+        return fetch(request).then((response) => {
+          // Check if valid response
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+
+          // Cache the new response
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+
+          return response;
+        });
+      })
+      .catch(() => {
+        // Both cache and network failed
+        console.log('[SW] Failed to fetch:', request.url);
+        return new Response('Offline', { 
+          status: 503, 
+          statusText: 'Service Unavailable' 
+        });
       })
   );
 });
