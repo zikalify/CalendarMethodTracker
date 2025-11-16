@@ -1,39 +1,27 @@
 # Calendar Method Tracker
 
-A simple web app to track menstrual cycles using the calendar method. This is a Progressive Web App (PWA) that works offline and can be installed on your device.
+A simple, privacy-focused Progressive Web App (PWA) to track menstrual cycles using the calendar method. All your data stays on your device—nothing is sent to servers.
+
+## About the App
+
+Calendar Method Tracker is designed to help you track your menstrual cycle and understand your fertility patterns using the calendar method of contraception. The app:
+
+- **Logs period start dates** - Easily record when each period begins
+- **Calculates cycle statistics** - Automatically computes your average cycle length and identifies patterns
+- **Works fully offline** - Once installed, the app works completely without internet
+- **Tolerates poor connections** - On slow networks (like weak 4G), it automatically falls back to cached data instead of failing
+- **Privacy-first** - All data is stored locally on your device using browser storage; nothing is ever synced to external servers
+- **Installable** - Add it to your home screen on any device (iOS, Android, or desktop)
+- **Pause tracking** - Mark periods as paused if needed (e.g., during medical treatments)
 
 ## Features
 
-- Track period start dates
-- View cycle statistics
-- Export/Import data
-- Works offline
-- Installable on your device
-
-## Deployment to GitHub Pages
-
-1. Create a new repository on GitHub
-2. Push this code to the `main` branch
-3. Go to Settings > Pages
-4. Under "Source", select "Deploy from a branch"
-5. Select `main` branch and `/ (root)` folder
-6. Click "Save"
-
-Your app will be available at `https://<your-username>.github.io/<repository-name>/`
-
-## Icons
-
-For the app to be fully PWA-compliant, you'll need to add two icon files to the root of your project:
-- `icon-192x192.png` (192x192 pixels)
-- `icon-512x512.png` (512x512 pixels)
-
-## Browser Support
-
-This app works best in modern browsers that support:
-- Service Workers
-- IndexedDB (for local storage)
-- Web App Manifest
-
-## License
-
-MIT
+- 📅 Track period start dates with a simple calendar picker
+- 📊 View cycle statistics including average cycle length
+- 🔒 All data stored locally on your device
+- 📱 Works offline with service worker caching
+- 🌐 Gracefully handles poor network connections with intelligent fallback
+- ⚙️ Pause/resume cycle tracking as needed
+- 🎨 Responsive design that works on all screen sizes
+- 💾 Data persistence with localStorage
+- 🚀 Installable as a PWA on any device

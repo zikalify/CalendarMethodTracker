@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calendar-method-tracker-v11';
+const CACHE_NAME = 'calendar-method-tracker-v12';
 const FONT_CACHE_NAME = 'fonts-v2';
 
 const ASSETS_TO_CACHE = [
