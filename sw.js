@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calendar-method-tracker-v10';
+const CACHE_NAME = 'calendar-method-tracker-v11';
 const FONT_CACHE_NAME = 'fonts-v2';
 
 const ASSETS_TO_CACHE = [
@@ -66,7 +66,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - offline-first strategy
+// Helper function to fetch with timeout
+function fetchWithTimeout(request, timeout = 5000) {
+  return Promise.race([
+    fetch(request),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Network timeout')), timeout)
+    )
+  ]);
+}
+
+// Fetch event - offline-first strategy with timeout handling
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   
@@ -89,7 +99,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle font requests - cache first, then network
+  // Handle font requests - cache first, then network with timeout
   if (request.url.includes('fonts.googleapis.com') || request.url.includes('fonts.gstatic.com')) {
     event.respondWith(
       caches.match(request, { cacheName: FONT_CACHE_NAME })
@@ -98,7 +108,7 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
           
-          return fetch(request).then((response) => {
+          return fetchWithTimeout(request, 5000).then((response) => {
             if (response && response.status === 200) {
               const responseToCache = response.clone();
               caches.open(FONT_CACHE_NAME).then((cache) => {
@@ -123,7 +133,7 @@ self.addEventListener('fetch', (event) => {
           if (response) {
             return response;
           }
-          return fetch(request).catch(() => {
+          return fetchWithTimeout(request, 5000).catch(() => {
             return caches.match('./index.html');
           });
         })
@@ -131,13 +141,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For all other requests: Cache first, fall back to network, then fail gracefully
+  // For all other requests: Cache first, fall back to network with timeout
   event.respondWith(
     caches.match(request)
       .then((cachedResponse) => {
         if (cachedResponse) {
-          // Return cached version and update cache in background
-          fetch(request).then((response) => {
+          // Return cached version and update cache in background with timeout
+          fetchWithTimeout(request, 5000).then((response) => {
             if (response && response.status === 200 && response.type === 'basic') {
               const responseToCache = response.clone();
               caches.open(CACHE_NAME).then((cache) => {
@@ -146,13 +156,14 @@ self.addEventListener('fetch', (event) => {
             }
           }).catch(() => {
             // Network failed, but we already have cached version
+            console.log('[SW] Network timeout for:', request.url, '- using cached version');
           });
           
           return cachedResponse;
         }
         
-        // Not in cache, try network
-        return fetch(request).then((response) => {
+        // Not in cache, try network with timeout
+        return fetchWithTimeout(request, 5000).then((response) => {
           // Check if valid response
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
@@ -165,14 +176,42 @@ self.addEventListener('fetch', (event) => {
           });
 
           return response;
+        }).catch(() => {
+          // Network timeout and not in cache, try to return cached version as fallback
+          console.log('[SW] Network timeout for:', request.url, '- trying fallback cache');
+          return caches.match(request).then((fallbackResponse) => {
+            if (fallbackResponse) {
+              return fallbackResponse;
+            }
+            // If we really have nothing, return offline response
+            console.log('[SW] No cache available for:', request.url);
+            return new Response('Offline', { 
+              status: 503, 
+              statusText: 'Service Unavailable' 
+            });
+          });
         });
       })
       .catch(() => {
-        // Both cache and network failed
-        console.log('[SW] Failed to fetch:', request.url);
-        return new Response('Offline', { 
-          status: 503, 
-          statusText: 'Service Unavailable' 
+        // Cache check failed, try network with timeout
+        return fetchWithTimeout(request, 5000).then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+
+          return response;
+        }).catch(() => {
+          // Network failed, return offline response
+          console.log('[SW] Failed to fetch:', request.url);
+          return new Response('Offline', { 
+            status: 503, 
+            statusText: 'Service Unavailable' 
+          });
         });
       })
   );
