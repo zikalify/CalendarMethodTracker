@@ -1,5 +1,14 @@
-const CACHE_NAME = 'calendar-method-tracker-v12';
+const CACHE_NAME = 'calendar-method-tracker-v13';
 const FONT_CACHE_NAME = 'fonts-v2';
+
+const OFFLINE_FALLBACK_URLS = [
+  new URL('./index.html', self.location.href).toString(),
+  new URL('./', self.location.href).toString(),
+  './index.html',
+  './',
+  '/'
+];
+const OFFLINE_CACHE_KEY = OFFLINE_FALLBACK_URLS[0];
 
 const ASSETS_TO_CACHE = [
   './',
@@ -76,6 +85,16 @@ function fetchWithTimeout(request, timeout = 5000) {
   ]);
 }
 
+async function getOfflinePage() {
+  for (const url of OFFLINE_FALLBACK_URLS) {
+    const match = await caches.match(url, { ignoreSearch: true });
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
+
 // Fetch event - offline-first strategy with timeout handling
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -127,17 +146,28 @@ self.addEventListener('fetch', (event) => {
 
   // Handle navigation requests (for the app itself)
   if (request.mode === 'navigate') {
-    event.respondWith(
-      caches.match('./index.html')
-        .then(response => {
-          if (response) {
-            return response;
-          }
-          return fetchWithTimeout(request, 5000).catch(() => {
-            return caches.match('./index.html');
+    event.respondWith((async () => {
+      try {
+        const networkResponse = await fetchWithTimeout(request, 5000);
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(OFFLINE_CACHE_KEY, responseToCache);
           });
-        })
-    );
+        }
+        return networkResponse;
+      } catch (error) {
+        const offlineResponse = await getOfflinePage();
+        if (offlineResponse) {
+          return offlineResponse;
+        }
+        console.warn('[SW] No offline fallback available for navigation:', error);
+        return new Response('Offline', {
+          status: 503,
+          statusText: 'Service Unavailable'
+        });
+      }
+    })());
     return;
   }
 
