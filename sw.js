@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calendar-method-tracker-v13';
+const CACHE_NAME = 'calendar-method-tracker-v14';
 const FONT_CACHE_NAME = 'fonts-v2';
 
 const OFFLINE_FALLBACK_URLS = [
@@ -34,9 +34,21 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all([
       // Cache main assets
-      caches.open(CACHE_NAME).then((cache) => {
+      caches.open(CACHE_NAME).then(async (cache) => {
         console.log('[SW] Caching app assets');
-        return cache.addAll(ASSETS_TO_CACHE);
+        await cache.addAll(ASSETS_TO_CACHE);
+
+        const offlineResponse = await cache.match('./index.html', { ignoreSearch: true });
+        if (offlineResponse) {
+          await Promise.all(
+            OFFLINE_FALLBACK_URLS.map(async (url) => {
+              const request = new Request(url, { cache: 'reload' });
+              await cache.put(request, offlineResponse.clone());
+            })
+          );
+        } else {
+          console.warn('[SW] Unable to seed offline fallbacks; index not cached yet.');
+        }
       }),
       // Cache fonts
       caches.open(FONT_CACHE_NAME).then((cache) => {
@@ -147,17 +159,19 @@ self.addEventListener('fetch', (event) => {
   // Handle navigation requests (for the app itself)
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
+      const offlineResponse = await getOfflinePage();
       try {
         const networkResponse = await fetchWithTimeout(request, 5000);
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(OFFLINE_CACHE_KEY, responseToCache);
+            Promise.all(
+              OFFLINE_FALLBACK_URLS.map((url) => cache.put(url, responseToCache.clone()))
+            ).catch((err) => console.warn('[SW] Failed to refresh offline fallbacks:', err));
           });
         }
         return networkResponse;
       } catch (error) {
-        const offlineResponse = await getOfflinePage();
         if (offlineResponse) {
           return offlineResponse;
         }
