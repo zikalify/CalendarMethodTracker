@@ -369,27 +369,52 @@ function handleFileImport(event) {
         try {
             const csv = e.target.result;
             const lines = csv.split('\n');
-            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+            
+            // Skip empty lines and trim each line
+            const nonEmptyLines = lines.filter(line => line.trim() !== '');
+            if (nonEmptyLines.length === 0) {
+                throw new Error('File is empty');
+            }
+
+            const headers = nonEmptyLines[0].split(',').map(h => h.trim().toLowerCase());
             
             // Check if CSV has the right format
-            if (!headers.includes('date')) {
+            if (!headers.includes('date') || !headers.includes('paused')) {
                 throw new Error('Invalid CSV format. Expected columns: Date, Paused');
             }
 
+            const dateIndex = headers.indexOf('date');
+            const pausedIndex = headers.indexOf('paused');
             const importedPeriods = [];
             
             // Start from index 1 to skip header
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue; // Skip empty lines
+            for (let i = 1; i < nonEmptyLines.length; i++) {
+                const line = nonEmptyLines[i].trim();
+                if (!line) continue; // Skip empty lines
                 
-                const values = lines[i].split(',');
-                const date = values[0]?.trim();
-                const paused = values[1]?.trim().toLowerCase() === 'yes';
+                const values = line.split(',');
+                const date = values[dateIndex]?.trim();
+                const paused = values[pausedIndex]?.trim().toLowerCase() === 'yes';
                 
                 if (date) {
+                    // Parse and reformat the date to ensure consistency
+                    let formattedDate = date;
+                    try {
+                        // Handle both YYYY-MM-DD and other formats
+                        const dateObj = new Date(date);
+                        if (isNaN(dateObj.getTime())) {
+                            throw new Error('Invalid date format');
+                        }
+                        // Format as YYYY-MM-DD
+                        formattedDate = dateObj.toISOString().split('T')[0];
+                    } catch (e) {
+                        console.warn(`Could not parse date: ${date}`, e);
+                        continue; // Skip invalid dates
+                    }
+
                     importedPeriods.push({
-                        date,
-                        paused: paused || false
+                        date: formattedDate,
+                        paused: paused
                     });
                 }
             }
@@ -399,7 +424,20 @@ function handleFileImport(event) {
             }
 
             if (confirm(`Import ${importedPeriods.length} period entries? This will replace your current data.`)) {
-                savePeriodHistory(importedPeriods);
+                const existingPeriods = getPeriodHistory();
+                // Merge with existing periods, keeping the newer version of duplicates
+                const mergedPeriods = [...existingPeriods];
+                
+                importedPeriods.forEach(imported => {
+                    const existingIndex = mergedPeriods.findIndex(p => p.date === imported.date);
+                    if (existingIndex >= 0) {
+                        mergedPeriods[existingIndex] = imported; // replace if exists
+                    } else {
+                        mergedPeriods.push(imported); // add if new
+                    }
+                });
+
+                savePeriodHistory(mergedPeriods);
                 alert('Import successful!');
             }
         } catch (error) {
