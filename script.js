@@ -386,6 +386,7 @@ function handleFileImport(event) {
             const dateIndex = headers.indexOf('date');
             const pausedIndex = headers.indexOf('paused');
             const importedPeriods = [];
+            const errors = [];
             
             // Start from index 1 to skip header
             for (let i = 1; i < nonEmptyLines.length; i++) {
@@ -400,30 +401,67 @@ function handleFileImport(event) {
                     // Parse and reformat the date to ensure consistency
                     let formattedDate = date;
                     try {
-                        // Handle both YYYY-MM-DD and other formats
-                        const dateObj = new Date(date);
+                        // Handle multiple date formats
+                        let dateObj;
+                        
+                        // Try ISO format (YYYY-MM-DD)
+                        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(date)) {
+                            const [year, month, day] = date.split('-').map(Number);
+                            dateObj = new Date(year, month - 1, day);
+                        } 
+                        // Try DD/MM/YYYY or MM/DD/YYYY
+                        else if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(date)) {
+                            const parts = date.split(/[\/\-]/);
+                            // Try both MM/DD/YYYY and DD/MM/YYYY
+                            const date1 = new Date(parts[2], parts[0] - 1, parts[1]);
+                            const date2 = new Date(parts[2], parts[1] - 1, parts[0]);
+                            // Use the one that makes sense (not invalid)
+                            dateObj = !isNaN(date1.getTime()) ? date1 : date2;
+                        } 
+                        // Try other formats using Date.parse
+                        else {
+                            dateObj = new Date(date);
+                        }
+                        
                         if (isNaN(dateObj.getTime())) {
                             throw new Error('Invalid date format');
                         }
+                        
                         // Format as YYYY-MM-DD
-                        formattedDate = dateObj.toISOString().split('T')[0];
+                        const year = dateObj.getFullYear();
+                        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const day = String(dateObj.getDate()).padStart(2, '0');
+                        formattedDate = `${year}-${month}-${day}`;
+                        
+                        importedPeriods.push({
+                            date: formattedDate,
+                            paused: paused
+                        });
                     } catch (e) {
+                        errors.push(`Line ${i+1}: Could not parse date "${date}"`);
                         console.warn(`Could not parse date: ${date}`, e);
-                        continue; // Skip invalid dates
                     }
-
-                    importedPeriods.push({
-                        date: formattedDate,
-                        paused: paused
-                    });
                 }
             }
 
-            if (importedPeriods.length === 0) {
+            if (importedPeriods.length === 0 && errors.length === 0) {
                 throw new Error('No valid period data found in the file');
             }
 
-            if (confirm(`Import ${importedPeriods.length} period entries? This will replace your current data.`)) {
+            let message = '';
+            if (importedPeriods.length > 0) {
+                message += `Found ${importedPeriods.length} valid period entries.\n\n`;
+            }
+            if (errors.length > 0) {
+                message += `Found ${errors.length} errors during import:\n`;
+                message += errors.slice(0, 5).join('\n');
+                if (errors.length > 5) {
+                    message += `\n...and ${errors.length - 5} more errors`;
+                }
+                message += '\n\nOnly the valid entries will be imported.';
+            }
+
+            if (confirm(`${message}\n\nDo you want to continue with the import?`)) {
                 const existingPeriods = getPeriodHistory();
                 // Merge with existing periods, keeping the newer version of duplicates
                 const mergedPeriods = [...existingPeriods];
@@ -438,7 +476,13 @@ function handleFileImport(event) {
                 });
 
                 savePeriodHistory(mergedPeriods);
-                alert('Import successful!');
+                loadAndDisplayPeriods(); // Refresh the display
+                
+                if (errors.length > 0) {
+                    alert(`Import completed with ${errors.length} warnings. Check the console for details.`);
+                } else {
+                    alert('Import completed successfully!');
+                }
             }
         } catch (error) {
             alert(`Error importing file: ${error.message}`);
@@ -450,14 +494,14 @@ function handleFileImport(event) {
     };
     
     reader.onerror = function() {
-        alert('Error reading file');
-        event.target.value = '';
+        alert('Error reading file. Please try again.');
+        console.error('FileReader error');
     };
     
     reader.readAsText(file);
 }
 
-// Helper function to parse dates in local timezone
+// ... (rest of the code remains the same)
 function parseLocalDate(dateString) {
     const [year, month, day] = dateString.split('-').map(Number);
     return new Date(year, month - 1, day);
