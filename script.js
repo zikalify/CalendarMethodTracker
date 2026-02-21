@@ -231,14 +231,13 @@ function updateStatistics(periods) {
     const fertileStart = Math.max(1, shortestCycle - 18); // Start of fertile window
     const fertileEnd = Math.max(1, longestCycle - 11);    // End of fertile window
     
-    // Calculate typical window using shortest cycle and median + 1.5*MAD
-    const typicalWindowStart = Math.max(1, Math.round((medianCycleLength - 18) - (1.5 * mad)));
-    
     // Calculate Median Absolute Deviation (MAD)
     const deviations = recentCycles.map(cycle => Math.abs(cycle - medianCycleLength));
     const sortedDeviations = [...deviations].sort((a, b) => a - b);
     const mad = sortedDeviations[Math.floor(sortedDeviations.length / 2)];
     
+    // Calculate typical window using median and MAD
+    const typicalWindowStart = Math.max(1, Math.round((medianCycleLength - 18) - (1.5 * mad)));
     const typicalWindowEnd = Math.max(1, Math.round((medianCycleLength - 11) + (1.5 * mad)));
     
     // Calculate current day of cycle
