@@ -236,6 +236,10 @@ function updateStatistics(periods) {
     const sortedDeviations = [...deviations].sort((a, b) => a - b);
     const mad = sortedDeviations[Math.floor(sortedDeviations.length / 2)];
     
+    // Calculate cycle stability (MAD ratio as percentage)
+    const madRatio = medianCycleLength > 0 ? (mad / medianCycleLength) * 100 : 0;
+    const cycleStability = madRatio >= 75 && madRatio <= 100 ? 'Regular' : 'Irregular';
+    
     // Calculate typical window using median and MAD
     const typicalWindowStart = Math.max(fertileStart, Math.round((medianCycleLength - 18) - (1.5 * mad)));
     const typicalWindowEnd = Math.min(fertileEnd, Math.round((medianCycleLength - 11) + (1.5 * mad)));
@@ -273,11 +277,15 @@ function updateStatistics(periods) {
             <span class="stat-value">${medianCycleLength} days</span>
         </div>
         <div class="stat-item">
+            <span class="stat-label">Cycle stability:</span>
+            <span class="stat-value">${cycleStability}</span>
+        </div>
+        <div class="stat-item">
             <span class="stat-label">Fertile window:</span>
             <span class="stat-value">Days ${fertileStart}-${fertileEnd}</span>
         </div>
         <div class="stat-item">
-            <span class="stat-label">Typical window:</span>
+            <span class="stat-label">Peak phase:</span>
             <span class="stat-value">Days ${typicalWindowStart}-${typicalWindowEnd}</span>
         </div>
         <div class="stat-item">
