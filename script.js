@@ -231,17 +231,9 @@ function updateStatistics(periods) {
     const fertileStart = Math.max(1, shortestCycle - 18); // Start of fertile window
     const fertileEnd = Math.max(1, longestCycle - 11);    // End of fertile window
     
-    // Calculate Median Absolute Deviation (MAD)
-    const deviations = recentCycles.map(cycle => Math.abs(cycle - medianCycleLength));
-    const sortedDeviations = [...deviations].sort((a, b) => a - b);
-    const devMid = Math.floor(sortedDeviations.length / 2);
-    const mad = sortedDeviations.length % 2 === 0
-        ? (sortedDeviations[devMid - 1] + sortedDeviations[devMid]) / 2
-        : sortedDeviations[devMid];
-    
-    // Calculate cycle stability (MAD ratio as percentage)
-    const madRatio = medianCycleLength > 0 ? (mad / medianCycleLength) * 100 : 0;
-    const cycleStability = madRatio <= 15 ? 'Regular' : 'Irregular';
+    // Calculate cycle stability (simple range check)
+    const cycleRange = longestCycle - shortestCycle;
+    const cycleStability = cycleRange <= 9 ? 'Regular' : 'Irregular';
     
     // Calculate typical window using median and MAD
     const typicalWindowStart = Math.max(fertileStart, Math.round((medianCycleLength - 18) - (1.5 * mad)));
