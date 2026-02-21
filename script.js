@@ -238,7 +238,7 @@ function updateStatistics(periods) {
     
     // Calculate cycle stability (MAD ratio as percentage)
     const madRatio = medianCycleLength > 0 ? (mad / medianCycleLength) * 100 : 0;
-    const cycleStability = madRatio >= 75 && madRatio <= 100 ? 'Regular' : 'Irregular';
+    const cycleStability = madRatio <= 15 ? 'Regular' : 'Irregular';
     
     // Calculate typical window using median and MAD
     const typicalWindowStart = Math.max(fertileStart, Math.round((medianCycleLength - 18) - (1.5 * mad)));
