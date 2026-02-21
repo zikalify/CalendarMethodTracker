@@ -231,13 +231,9 @@ function updateStatistics(periods) {
     const fertileStart = Math.max(1, shortestCycle - 18); // Start of fertile window
     const fertileEnd = Math.max(1, longestCycle - 11);    // End of fertile window
     
-    // Calculate Q1 and Q3 for most likely fertile period
-    const q1Index = Math.floor(sortedCycles.length * 0.25);
-    const q3Index = Math.floor(sortedCycles.length * 0.75);
-    const q1Cycle = sortedCycles[q1Index];
-    const q3Cycle = sortedCycles[q3Index];
-    const mostLikelyFertileStart = Math.max(1, q1Cycle - 18);
-    const mostLikelyFertileEnd = Math.max(1, q3Cycle - 11);
+    // Calculate typical window using shortest cycle and median cycle
+    const typicalWindowStart = Math.max(1, shortestCycle - 18);
+    const typicalWindowEnd = Math.max(1, medianCycleLength - 11);
     
     // Calculate current day of cycle
     let daysInCurrentCycle = 'Paused';
@@ -276,8 +272,8 @@ function updateStatistics(periods) {
             <span class="stat-value">Days ${fertileStart}-${fertileEnd}</span>
         </div>
         <div class="stat-item">
-            <span class="stat-label">Most likely fertile period:</span>
-            <span class="stat-value">Days ${mostLikelyFertileStart}-${mostLikelyFertileEnd}</span>
+            <span class="stat-label">Typical window:</span>
+            <span class="stat-value">Days ${typicalWindowStart}-${typicalWindowEnd}</span>
         </div>
         <div class="stat-item">
             <span class="stat-label">Current day of cycle:</span>
