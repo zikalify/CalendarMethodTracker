@@ -231,9 +231,16 @@ function updateStatistics(periods) {
     const fertileStart = Math.max(1, shortestCycle - 18); // Start of fertile window
     const fertileEnd = Math.max(1, longestCycle - 11);    // End of fertile window
     
-    // Calculate typical window using shortest cycle and median cycle
+    // Calculate typical window using shortest cycle and median + 1.5*SD
     const typicalWindowStart = Math.max(1, shortestCycle - 18);
-    const typicalWindowEnd = Math.max(1, medianCycleLength - 11);
+    
+    // Calculate standard deviation
+    const mean = recentCycles.reduce((a, b) => a + b, 0) / recentCycles.length;
+    const squaredDiffs = recentCycles.map(cycle => Math.pow(cycle - mean, 2));
+    const variance = squaredDiffs.reduce((a, b) => a + b, 0) / recentCycles.length;
+    const standardDeviation = Math.sqrt(variance);
+    
+    const typicalWindowEnd = Math.max(1, Math.round(medianCycleLength + (1.5 * standardDeviation)));
     
     // Calculate current day of cycle
     let daysInCurrentCycle = 'Paused';

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calendar-method-tracker-v20';
+const CACHE_NAME = 'calendar-method-tracker-v21';
 const FONT_CACHE_NAME = 'fonts-v2';
 
 const OFFLINE_FALLBACK_URLS = [
