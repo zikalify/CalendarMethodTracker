@@ -215,16 +215,29 @@ function updateStatistics(periods) {
     const totalCycles = validPeriods.length;
     const shortestCycle = Math.min(...recentCycles);
     const longestCycle = Math.max(...recentCycles);
-    const avgCycleLength = Math.round(recentCycles.reduce((a, b) => a + b, 0) / recentCycles.length);
+    // Calculate median cycle length of recent cycles
+    const sortedCycles = [...recentCycles].sort((a, b) => a - b);
+    const mid = Math.floor(sortedCycles.length / 2);
+    const medianCycleLength = sortedCycles.length % 2 === 0
+        ? Math.round((sortedCycles[mid - 1] + sortedCycles[mid]) / 2)
+        : sortedCycles[mid];
     
-    // Predict next period based on average cycle length of recent cycles
+    // Predict next period based on median cycle length of recent cycles
     const lastPeriodDate = parseLocalDate(validPeriods[0].date);
     const nextPeriod = new Date(lastPeriodDate);
-    nextPeriod.setDate(lastPeriodDate.getDate() + avgCycleLength);
+    nextPeriod.setDate(lastPeriodDate.getDate() + medianCycleLength);
     
     // Calculate fertile window (based on recent shortest and longest cycles)
     const fertileStart = Math.max(1, shortestCycle - 18); // Start of fertile window
     const fertileEnd = Math.max(1, longestCycle - 11);    // End of fertile window
+    
+    // Calculate Q1 and Q3 for most likely fertile period
+    const q1Index = Math.floor(sortedCycles.length * 0.25);
+    const q3Index = Math.floor(sortedCycles.length * 0.75);
+    const q1Cycle = sortedCycles[q1Index];
+    const q3Cycle = sortedCycles[q3Index];
+    const mostLikelyFertileStart = Math.max(1, q1Cycle - 18);
+    const mostLikelyFertileEnd = Math.max(1, q3Cycle - 11);
     
     // Calculate current day of cycle
     let daysInCurrentCycle = 'Paused';
@@ -255,12 +268,16 @@ function updateStatistics(periods) {
             <span class="stat-value">${longestCycle} days</span>
         </div>
         <div class="stat-item">
-            <span class="stat-label">Average cycle:</span>
-            <span class="stat-value">${avgCycleLength} days</span>
+            <span class="stat-label">Median cycle:</span>
+            <span class="stat-value">${medianCycleLength} days</span>
         </div>
         <div class="stat-item">
             <span class="stat-label">Fertile window:</span>
             <span class="stat-value">Days ${fertileStart}-${fertileEnd}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Most likely fertile period:</span>
+            <span class="stat-value">Days ${mostLikelyFertileStart}-${mostLikelyFertileEnd}</span>
         </div>
         <div class="stat-item">
             <span class="stat-label">Current day of cycle:</span>
