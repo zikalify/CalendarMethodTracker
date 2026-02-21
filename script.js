@@ -234,7 +234,10 @@ function updateStatistics(periods) {
     // Calculate Median Absolute Deviation (MAD)
     const deviations = recentCycles.map(cycle => Math.abs(cycle - medianCycleLength));
     const sortedDeviations = [...deviations].sort((a, b) => a - b);
-    const mad = sortedDeviations[Math.floor(sortedDeviations.length / 2)];
+    const devMid = Math.floor(sortedDeviations.length / 2);
+    const mad = sortedDeviations.length % 2 === 0
+        ? (sortedDeviations[devMid - 1] + sortedDeviations[devMid]) / 2
+        : sortedDeviations[devMid];
     
     // Calculate cycle stability (MAD ratio as percentage)
     const madRatio = medianCycleLength > 0 ? (mad / medianCycleLength) * 100 : 0;
