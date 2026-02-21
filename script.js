@@ -235,9 +235,10 @@ function updateStatistics(periods) {
     const cycleRange = longestCycle - shortestCycle;
     const cycleStability = cycleRange <= 9 ? 'Regular' : 'Irregular';
     
-    // Calculate typical window using median and MAD
-    const typicalWindowStart = Math.max(fertileStart, Math.round((medianCycleLength - 18) - (1.5 * mad)));
-    const typicalWindowEnd = Math.min(fertileEnd, Math.round((medianCycleLength - 11) + (1.5 * mad)));
+    // Calculate typical window using median and cycle variation
+    const variation = cycleRange / 2; // Simple variation measure
+    const typicalWindowStart = Math.max(fertileStart, Math.round((medianCycleLength - 18) - (1.5 * variation)));
+    const typicalWindowEnd = Math.min(fertileEnd, Math.round((medianCycleLength - 11) + (1.5 * variation)));
     
     // Calculate current day of cycle
     let daysInCurrentCycle = 'Paused';
