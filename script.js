@@ -293,7 +293,7 @@ function updateStatistics(periods) {
         nextPeriod,
         fertileStart,
         fertileEnd,
-        avgCycleLength
+        medianCycleLength
     };
 }
 
