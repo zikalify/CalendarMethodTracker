@@ -493,7 +493,7 @@ function handleFileImport(event) {
 
             let message = '';
             if (importedPeriods.length > 0) {
-                message += `Found ${importedPeriods.length} valid period entries.\n\n`;
+                message += `Found ${importedPeriods.length} valid period entries.\n`;
             }
             if (errors.length > 0) {
                 message += `Found ${errors.length} errors during import:\n`;
