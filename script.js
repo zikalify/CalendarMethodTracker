@@ -176,6 +176,26 @@ function calculatePregnancyTestDay(lastPeakDay, currentCycleDay) {
     return `Day ${pregnancyTestDay}`;
 }
 
+// Toggle peak phase info bubble
+function togglePeakPhaseInfo() {
+    const infoBubble = document.getElementById('peakPhaseInfo');
+    if (infoBubble) {
+        infoBubble.style.display = infoBubble.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Close info bubble when clicking outside
+document.addEventListener('click', function(event) {
+    const infoBubble = document.getElementById('peakPhaseInfo');
+    const infoIcon = document.querySelector('.info-icon');
+    
+    if (infoBubble && infoBubble.style.display === 'block') {
+        if (!infoBubble.contains(event.target) && !infoIcon.contains(event.target)) {
+            infoBubble.style.display = 'none';
+        }
+    }
+});
+
 // Update the statistics section
 function updateStatistics(periods) {
     const statsDiv = document.getElementById('stats');
@@ -298,8 +318,16 @@ function updateStatistics(periods) {
             <span class="stat-value">Days ${fertileStart}-${fertileEnd}</span>
         </div>
         <div class="stat-item">
-            <span class="stat-label">Peak phase:</span>
+            <span class="stat-label">Peak phase <span class="info-icon" onclick="togglePeakPhaseInfo()" title="Click for info">?</span>:</span>
             <span class="stat-value">Days ${typicalWindowStart}-${typicalWindowEnd}</span>
+            <div id="peakPhaseInfo" class="info-bubble" style="display: none;">
+                <span class="close-bubble" onclick="togglePeakPhaseInfo()">×</span>
+                <strong>How opening and closing days are calculated:</strong><br><br>
+                Opening day: The greater of (shortest cycle - 18) and ((median cycle - 18) - 1.5 × MAD)<br><br>
+                Closing day: The lesser of (longest cycle - 11) and ((median cycle - 11) + 1.5 × MAD)<br><br>
+                MAD = Median Absolute Deviation of cycle lengths from the median<br><br>
+                Knowing your peak phase helps identify your most fertile days for conception or natural family planning.
+            </div>
         </div>
         <div class="stat-item">
             <span class="stat-label">Take pregnancy test:</span>
