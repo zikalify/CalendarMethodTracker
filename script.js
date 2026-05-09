@@ -166,6 +166,22 @@ function deletePeriod(dateStr) {
     }
 }
 
+// Calculate pregnancy test day display
+function calculatePregnancyTestDay(lastPeakDay, currentCycleDay) {
+    if (currentCycleDay === 'Paused') {
+        return 'Paused';
+    }
+    
+    const pregnancyTestDay = lastPeakDay + 14;
+    
+    if (currentCycleDay >= pregnancyTestDay) {
+        return 'Now';
+    } else {
+        const daysUntil = pregnancyTestDay - currentCycleDay;
+        return `Day ${pregnancyTestDay} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} left)`;
+    }
+}
+
 // Update the statistics section
 function updateStatistics(periods) {
     const statsDiv = document.getElementById('stats');
@@ -290,6 +306,10 @@ function updateStatistics(periods) {
         <div class="stat-item">
             <span class="stat-label">Peak phase:</span>
             <span class="stat-value">Days ${typicalWindowStart}-${typicalWindowEnd}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Take pregnancy test:</span>
+            <span class="stat-value">${calculatePregnancyTestDay(typicalWindowEnd, daysInCurrentCycle)}</span>
         </div>
         <div class="stat-item">
             <span class="stat-label">Current day of cycle:</span>
