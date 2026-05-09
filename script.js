@@ -504,7 +504,7 @@ function handleFileImport(event) {
                 message += '\n\nOnly the valid entries will be imported.';
             }
 
-            if (confirm(`${message}\n\nDo you want to continue with the import?`)) {
+            if (confirm(`${message}\nDo you want to continue with the import?`)) {
                 const existingPeriods = getPeriodHistory();
                 // Merge with existing periods, keeping the newer version of duplicates
                 const mergedPeriods = [...existingPeriods];
