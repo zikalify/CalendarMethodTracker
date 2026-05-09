@@ -173,13 +173,7 @@ function calculatePregnancyTestDay(lastPeakDay, currentCycleDay) {
     }
     
     const pregnancyTestDay = lastPeakDay + 14;
-    
-    if (currentCycleDay >= pregnancyTestDay) {
-        return 'Now';
-    } else {
-        const daysUntil = pregnancyTestDay - currentCycleDay;
-        return `Day ${pregnancyTestDay} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} left)`;
-    }
+    return `Day ${pregnancyTestDay}`;
 }
 
 // Update the statistics section
