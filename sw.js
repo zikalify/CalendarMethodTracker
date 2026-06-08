@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calendar-method-tracker-v37';
+const CACHE_NAME = 'calendar-method-tracker-v38';
 const FONT_CACHE_NAME = 'fonts-v2';
 
 const OFFLINE_FALLBACK_URLS = [
@@ -30,7 +30,7 @@ const FONTS_TO_CACHE = [
 // Install event - cache all assets
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
-  
+
   event.waitUntil(
     Promise.all([
       // Cache main assets
@@ -69,7 +69,7 @@ self.addEventListener('install', (event) => {
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating service worker...');
-  
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -110,7 +110,7 @@ async function getOfflinePage() {
 // Fetch event - offline-first strategy with timeout handling
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  
+
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
@@ -138,7 +138,7 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          
+
           return fetchWithTimeout(request, 5000).then((response) => {
             if (response && response.status === 200) {
               const responseToCache = response.clone();
@@ -202,10 +202,10 @@ self.addEventListener('fetch', (event) => {
             // Network failed, but we already have cached version
             console.log('[SW] Network timeout for:', request.url, '- using cached version');
           });
-          
+
           return cachedResponse;
         }
-        
+
         // Not in cache, try network with timeout
         return fetchWithTimeout(request, 5000).then((response) => {
           // Check if valid response
@@ -229,9 +229,9 @@ self.addEventListener('fetch', (event) => {
             }
             // If we really have nothing, return offline response
             console.log('[SW] No cache available for:', request.url);
-            return new Response('Offline', { 
-              status: 503, 
-              statusText: 'Service Unavailable' 
+            return new Response('Offline', {
+              status: 503,
+              statusText: 'Service Unavailable'
             });
           });
         });
@@ -252,9 +252,9 @@ self.addEventListener('fetch', (event) => {
         }).catch(() => {
           // Network failed, return offline response
           console.log('[SW] Failed to fetch:', request.url);
-          return new Response('Offline', { 
-            status: 503, 
-            statusText: 'Service Unavailable' 
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable'
           });
         });
       })
