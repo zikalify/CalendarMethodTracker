@@ -218,7 +218,14 @@ function updateStatistics(periods) {
     
     for (const period of allPeriodsChronological) {
         if (period.paused) {
-            // Reset the last valid period when we hit a paused period
+            // Calculate and include the cycle leading up to the paused period
+            if (lastValidPeriod !== null) {
+                const current = parseLocalDate(period.date);
+                const prev = parseLocalDate(lastValidPeriod.date);
+                const diffDays = Math.round((current - prev) / (1000 * 60 * 60 * 24));
+                cycleLengths.push(diffDays);
+            }
+            // Reset the last valid period so the cycle starting after this is ignored
             lastValidPeriod = null;
         } else {
             if (lastValidPeriod !== null) {
@@ -257,10 +264,8 @@ function updateStatistics(periods) {
 
     let medianCycleLength;
     let mad;
-    let madMultiplier = 1.5;
 
     if (cycleStability === 'Irregular') {
-        madMultiplier = 1.0; // Tighten the peak phase by using 1.0 * MAD instead of 1.5 * MAD
         const weightedCycles = [];
         
         for (let i = 0; i < recent6.length; i++) {
@@ -280,12 +285,12 @@ function updateStatistics(periods) {
             : sortedWeighted[midWeighted];
 
         // Calculate MAD based on the weighted cycles and weighted median
-        const deviations = weightedCycles.map(cycle => Math.abs(cycle - medianCycleLength));
-        const sortedDeviations = [...deviations].sort((a, b) => a - b);
-        const devMid = Math.floor(sortedDeviations.length / 2);
-        mad = sortedDeviations.length % 2 === 0
-            ? (sortedDeviations[devMid - 1] + sortedDeviations[devMid]) / 2
-            : sortedDeviations[devMid];
+        const deviationsW = weightedCycles.map(cycle => Math.abs(cycle - medianCycleLength));
+        const sortedDeviationsW = [...deviationsW].sort((a, b) => a - b);
+        const devMidW = Math.floor(sortedDeviationsW.length / 2);
+        mad = sortedDeviationsW.length % 2 === 0
+            ? (sortedDeviationsW[devMidW - 1] + sortedDeviationsW[devMidW]) / 2
+            : sortedDeviationsW[devMidW];
     } else {
         // Calculate median cycle length of recent cycles (up to 12 cycles)
         const sortedCycles = [...recentCycles].sort((a, b) => a - b);
@@ -312,9 +317,11 @@ function updateStatistics(periods) {
     const fertileStart = Math.max(1, shortestCycle - 18); // Start of fertile window
     const fertileEnd = Math.max(1, longestCycle - 11);    // End of fertile window
 
-    // Calculate typical window using median and MAD
-    const typicalWindowStart = Math.max(fertileStart, Math.round((medianCycleLength - 18) - (madMultiplier * mad)));
-    const typicalWindowEnd = Math.min(fertileEnd, Math.round((medianCycleLength - 11) + (madMultiplier * mad)));
+    // Calculate typical window using asymmetric MAD multipliers
+    // Opening uses 1.5 × MAD (sperm survives ~5 days, needs generous lead time)
+    // Closing uses 0.3 × MAD (egg survives ~1 day, window closes quickly after ovulation)
+    const typicalWindowStart = Math.max(fertileStart, Math.round((medianCycleLength - 18) - (1.5 * mad)));
+    const typicalWindowEnd = Math.min(fertileEnd, Math.round((medianCycleLength - 11) + (0.3 * mad)));
     
     // Calculate current day of cycle
     let daysInCurrentCycle = 'Paused';
@@ -362,10 +369,10 @@ function updateStatistics(periods) {
             <div id="peakPhaseInfo" class="info-bubble" style="display: none;">
                 <span class="close-bubble" onclick="togglePeakPhaseInfo()">×</span>
                 <strong>How opening and closing days are calculated:</strong><br><br>
-                Opening day: The greater of (shortest cycle - 18) and ((median cycle - 18) - ${madMultiplier} × MAD)<br><br>
-                Closing day: The lesser of (longest cycle - 11) and ((median cycle - 11) + ${madMultiplier} × MAD)<br><br>
+                Opening day: The greater of (shortest cycle - 18) and ((median cycle - 18) - 1.5 × MAD)<br><br>
+                Closing day: The lesser of (longest cycle - 11) and ((median cycle - 11) + 0.3 × MAD)<br><br>
                 MAD = Median Absolute Deviation of cycle lengths from the median<br><br>
-                Knowing your peak phase helps identify your most fertile days for conception or natural family planning.
+                The opening uses a larger multiplier (1.5×) because sperm can survive ~5 days, requiring generous lead time before ovulation. The closing uses a smaller multiplier (0.3×) because the egg survives only ~1 day after ovulation, so the window closes quickly.
             </div>
         </div>
         <div class="stat-item">
