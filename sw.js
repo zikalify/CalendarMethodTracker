@@ -1,48 +1,262 @@
-const CACHE = 'cmt-neo-v2';
-const ASSETS = [
-    './',
-    './index.html',
-    './styles.css',
-    './app.js',
-    './manifest.json',
-    './icon-192x192.png',
-    './icon-512x512.png'
+const CACHE_NAME = 'calendar-method-tracker-v42';
+const FONT_CACHE_NAME = 'fonts-v2';
+
+const OFFLINE_FALLBACK_URLS = [
+  new URL('./index.html', self.location.href).toString(),
+  new URL('./', self.location.href).toString(),
+  './index.html',
+  './',
+  '/'
+];
+const OFFLINE_CACHE_KEY = OFFLINE_FALLBACK_URLS[0];
+
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './script.js',
+  './styles.css',
+  './responsive-fix.css',
+  './manifest.json',
+  './icon-192x192.png',
+  './icon-512x512.png'
 ];
 
-self.addEventListener('install', (e) => {
-    e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+const FONTS_TO_CACHE = [
+  'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
+  'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmSU5fBBc4.woff2',
+  'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff2'
+];
+
+// Install event - cache all assets
+self.addEventListener('install', (event) => {
+  console.log('[SW] Installing service worker...');
+
+  event.waitUntil(
+    Promise.all([
+      // Cache main assets
+      caches.open(CACHE_NAME).then(async (cache) => {
+        console.log('[SW] Caching app assets');
+        await cache.addAll(ASSETS_TO_CACHE);
+
+        const offlineResponse = await cache.match('./index.html', { ignoreSearch: true });
+        if (offlineResponse) {
+          await Promise.all(
+            OFFLINE_FALLBACK_URLS.map(async (url) => {
+              const request = new Request(url, { cache: 'reload' });
+              await cache.put(request, offlineResponse.clone());
+            })
+          );
+        } else {
+          console.warn('[SW] Unable to seed offline fallbacks; index not cached yet.');
+        }
+      }),
+      // Cache fonts
+      caches.open(FONT_CACHE_NAME).then((cache) => {
+        console.log('[SW] Caching fonts');
+        return cache.addAll(FONTS_TO_CACHE).catch(err => {
+          console.warn('[SW] Some fonts failed to cache:', err);
+          // Don't fail installation if fonts fail
+          return Promise.resolve();
+        });
+      })
+    ]).then(() => {
+      console.log('[SW] Installation complete');
+      return self.skipWaiting();
+    })
+  );
 });
 
-self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches.keys()
-            .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-            .then(() => self.clients.claim())
+// Activate event - clean up old caches
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating service worker...');
+
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME && cache !== FONT_CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cache);
+            return caches.delete(cache);
+          }
+        })
+      );
+    }).then(() => {
+      console.log('[SW] Activation complete');
+      return self.clients.claim();
+    })
+  );
+});
+
+// Helper function to fetch with timeout
+function fetchWithTimeout(request, timeout = 5000) {
+  return Promise.race([
+    fetch(request),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Network timeout')), timeout)
+    )
+  ]);
+}
+
+async function getOfflinePage() {
+  for (const url of OFFLINE_FALLBACK_URLS) {
+    const match = await caches.match(url, { ignoreSearch: true });
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
+
+// Fetch event - offline-first strategy with timeout handling
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip non-http(s) requests
+  if (!request.url.startsWith('http')) {
+    return;
+  }
+
+  // Handle favicon requests
+  if (request.url.endsWith('/favicon.ico')) {
+    event.respondWith(
+      caches.match('./icon-192x192.png')
+        .then(response => response || new Response(null, { status: 204 }))
     );
-});
+    return;
+  }
 
-self.addEventListener('fetch', (e) => {
-    if (e.request.method !== 'GET') return;
-    e.respondWith(
-        caches.match(e.request).then((hit) => {
-            if (hit) {
-                fetch(e.request).then((res) => {
-                    if (res && res.status === 200) {
-                        const copy = res.clone();
-                        caches.open(CACHE).then((c) => c.put(e.request, copy));
-                    }
-                }).catch(() => {});
-                return hit;
+  // Handle font requests - cache first, then network with timeout
+  if (request.url.includes('fonts.googleapis.com') || request.url.includes('fonts.gstatic.com')) {
+    event.respondWith(
+      caches.match(request, { cacheName: FONT_CACHE_NAME })
+        .then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+
+          return fetchWithTimeout(request, 5000).then((response) => {
+            if (response && response.status === 200) {
+              const responseToCache = response.clone();
+              caches.open(FONT_CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
             }
-            return fetch(e.request)
-                .then((res) => {
-                    if (res && (res.status === 200 || res.type === 'opaque')) {
-                        const copy = res.clone();
-                        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
-                    }
-                    return res;
-                })
-                .catch(() => caches.match('./index.html'));
+            return response;
+          }).catch(() => {
+            // Return empty response if offline and not cached
+            return new Response('', { status: 200, statusText: 'OK' });
+          });
         })
     );
+    return;
+  }
+
+  // Handle navigation requests (for the app itself)
+  if (request.mode === 'navigate') {
+    event.respondWith((async () => {
+      const offlineResponse = await getOfflinePage();
+      try {
+        const networkResponse = await fetchWithTimeout(request, 5000);
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            Promise.all(
+              OFFLINE_FALLBACK_URLS.map((url) => cache.put(url, responseToCache.clone()))
+            ).catch((err) => console.warn('[SW] Failed to refresh offline fallbacks:', err));
+          });
+        }
+        return networkResponse;
+      } catch (error) {
+        if (offlineResponse) {
+          return offlineResponse;
+        }
+        console.warn('[SW] No offline fallback available for navigation:', error);
+        return new Response('Offline', {
+          status: 503,
+          statusText: 'Service Unavailable'
+        });
+      }
+    })());
+    return;
+  }
+
+  // For all other requests: Cache first, fall back to network with timeout
+  event.respondWith(
+    caches.match(request)
+      .then((cachedResponse) => {
+        if (cachedResponse) {
+          // Return cached version and update cache in background with timeout
+          fetchWithTimeout(request, 5000).then((response) => {
+            if (response && response.status === 200 && response.type === 'basic') {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+          }).catch(() => {
+            // Network failed, but we already have cached version
+            console.log('[SW] Network timeout for:', request.url, '- using cached version');
+          });
+
+          return cachedResponse;
+        }
+
+        // Not in cache, try network with timeout
+        return fetchWithTimeout(request, 5000).then((response) => {
+          // Check if valid response
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+
+          // Cache the new response
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+
+          return response;
+        }).catch(() => {
+          // Network timeout and not in cache, try to return cached version as fallback
+          console.log('[SW] Network timeout for:', request.url, '- trying fallback cache');
+          return caches.match(request).then((fallbackResponse) => {
+            if (fallbackResponse) {
+              return fallbackResponse;
+            }
+            // If we really have nothing, return offline response
+            console.log('[SW] No cache available for:', request.url);
+            return new Response('Offline', {
+              status: 503,
+              statusText: 'Service Unavailable'
+            });
+          });
+        });
+      })
+      .catch(() => {
+        // Cache check failed, try network with timeout
+        return fetchWithTimeout(request, 5000).then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+
+          return response;
+        }).catch(() => {
+          // Network failed, return offline response
+          console.log('[SW] Failed to fetch:', request.url);
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable'
+          });
+        });
+      })
+  );
 });

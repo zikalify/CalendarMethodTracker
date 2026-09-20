@@ -3,88 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0c0814">
+    <meta name="theme-color" content="#4a90e2" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#4a90e2" media="(prefers-color-scheme: dark)">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="description" content="CMT-Neo — a minimal cycle tracker">
-    <title>CMT-Neo</title>
-
-    <link rel="manifest" href="./manifest.json">
+    <meta name="description" content="Track your menstrual cycles using the calendar method">
+    <title>Calendar Method Tracker</title>
+    
+    <!-- Icons -->
     <link rel="icon" href="./icon-192x192.png" type="image/png">
+    <link rel="shortcut icon" href="./icon-192x192.png" type="image/png">
     <link rel="apple-touch-icon" href="./icon-192x192.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    
+    <!-- Manifest and Theme -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Preload critical CSS -->
+    <link rel="preload" href="./styles.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="./styles.css"></noscript>
+    
+    <!-- Preload critical fonts -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap"></noscript>
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"></noscript>
+    <link rel="stylesheet" href="./responsive-fix.css">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
 </head>
 <body>
-
-    <div class="blob"></div>
-
-    <main class="app">
-        <header class="bar">
-            <span class="brand">CMT-Neo</span>
-            <button class="icon-btn" id="menuBtn" aria-label="Periods">
-                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5h.01M12 12h.01M12 19h.01"/></svg>
-            </button>
-        </header>
-
-        <section class="center">
-            <span class="phase" id="phaseBadge"></span>
-            <div class="big" id="heroBig">–</div>
-            <div class="label" id="heroLabel">log a period</div>
-            <p class="tiny" id="heroTiny"></p>
-        </section>
-    </main>
-
-    <button class="fab" id="fab" aria-label="Log period">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-
-    <div class="sheet" id="logSheet">
-        <div class="sheet-backdrop" data-close></div>
-        <div class="sheet-panel">
-            <div class="sheet-grip"></div>
-            <h3 id="logSheetTitle">period</h3>
-            <p class="sheet-sub" id="logSheetSub">first day</p>
-            <div class="chips" id="quickChips">
-                <button class="chip" data-offset="0">today</button>
-                <button class="chip" data-offset="1">yesterday</button>
-                <button class="chip" data-offset="2">+2</button>
+    <div class="container">
+        <h1>Calendar Method Tracker</h1>
+        
+        <div class="section">
+            <h2>Log Period Start</h2>
+            <div class="input-section">
+                <label for="periodDate">Period Start Date:</label>
+                <input type="date" id="periodDate" required>
+                <button onclick="logPeriod()">Log Period</button>
             </div>
-            <input type="date" id="logDate" max="">
-            <button class="btn-primary" id="confirmLog">save</button>
-            <button class="btn-ghost" data-close>close</button>
         </div>
-    </div>
 
-    <div class="sheet" id="menuSheet">
-        <div class="sheet-backdrop" data-close></div>
-        <div class="sheet-panel panel-scroll">
-            <div class="sheet-grip"></div>
-            <div class="sheet-head">
-                <h3>periods</h3>
-                <div class="sheet-actions">
-                    <button class="icon-btn" id="menuExport" aria-label="Export">
-                        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <div class="section">
+            <h2>Cycle Statistics</h2>
+            <div id="stats" class="stats">
+                <p>Log at least 2 periods to see statistics</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2>Period History</h2>
+                <div class="action-buttons">
+                    <button onclick="exportToCSV()" class="export-btn" title="Export to CSV">
+                        <span class="btn-icon">📥</span> Export
                     </button>
-                    <button class="icon-btn" id="menuImport" aria-label="Import">
-                        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 8l5-5 5 5M12 3v12"/></svg>
-                    </button>
-                    <input type="file" id="importFile" accept=".csv,.txt,text/csv,text/plain" hidden>
+                    <label class="import-btn" title="Import from CSV">
+                        <span class="btn-icon">📤</span> Import
+                        <input type="file" id="importFile" accept=".csv,.txt,text/csv,text/plain" style="display: none;">
+                    </label>
                 </div>
             </div>
-            <div id="historyList" class="history-list"><p class="empty-state">nothing yet</p></div>
-            <div class="divider"></div>
-            <div class="row-label">clear</div>
-            <button class="btn-danger" id="clearAllBtn">erase all</button>
+            <div id="periodHistory" class="period-history">
+                <p>No periods logged yet</p>
+            </div>
+            <p class="hint">💡 <strong>Tip:</strong> Use the "Pause" toggle to exclude periods from statistics when you're not tracking (e.g., during pregnancy, breastfeeding, or hormonal birth control use). This helps maintain accurate cycle predictions.</p>
         </div>
     </div>
-
-    <div class="toast" id="toast" role="status"></div>
-
-    <script src="./app.js"></script>
+    <script src="./script.js"></script>
+    <script>
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js', { scope: './' })
+            .then(registration => {
+              console.log('ServiceWorker registration successful');
+            })
+            .catch(err => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
+    </script>
 </body>
 </html>
