@@ -1,5 +1,5 @@
-const CACHE_NAME = 'calendar-method-tracker-v42';
-const FONT_CACHE_NAME = 'fonts-v2';
+const CACHE_NAME = 'calendar-method-tracker-v100';
+const FONT_CACHE_NAME = 'fonts-v3';
 
 const OFFLINE_FALLBACK_URLS = [
   new URL('./index.html', self.location.href).toString(),
