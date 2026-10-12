@@ -98,14 +98,13 @@ function updatePeriodHistoryUI(periods) {
         // For all except the first period, calculate the cycle length from the previous period
         if (i > 0) {
             const prev = sortedPeriods[i - 1];
-            // Subtract previous date from current date to get positive cycle length
-            const daysBetween = Math.round((parseLocalDate(current.date) - parseLocalDate(prev.date)) / (1000 * 60 * 60 * 24));
-            
-            if (current.paused) {
+            // prev is newer, current is older; gap is prev - current (positive)
+            const daysBetween = Math.round((parseLocalDate(prev.date) - parseLocalDate(current.date)) / (1000 * 60 * 60 * 24));
+
+            if (current.paused || prev.paused) {
+                // Matches updateStatistics: gaps touching a pause are excluded
+                // from calculations, so don't present them as counted cycles.
                 cycleLength = `<span class="cycle-length paused">Paused</span>`;
-            } else if (prev.paused) {
-                // Show the cycle length for the period after a pause
-                cycleLength = `<span class="cycle-length">${Math.abs(daysBetween)}-day cycle</span>`;
             } else {
                 cycleLength = `<span class="cycle-length">${Math.abs(daysBetween)}-day cycle</span>`;
             }
@@ -212,20 +211,15 @@ function updateStatistics(periods) {
     const allPeriodsChronological = [...periods]
         .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date));
     
-    // Calculate cycle lengths between consecutive non-paused periods
+    // Calculate cycle lengths between consecutive non-paused periods.
+    // Backported from CMT-Neo: an interrupted gap (paused spell / missed logs)
+    // is NOT a completed cycle, so break the chain instead of counting the
+    // long gap as one cycle.
     const cycleLengths = [];
     let lastValidPeriod = null;
     
     for (const period of allPeriodsChronological) {
         if (period.paused) {
-            // Calculate and include the cycle leading up to the paused period
-            if (lastValidPeriod !== null) {
-                const current = parseLocalDate(period.date);
-                const prev = parseLocalDate(lastValidPeriod.date);
-                const diffDays = Math.round((current - prev) / (1000 * 60 * 60 * 24));
-                cycleLengths.push(diffDays);
-            }
-            // Reset the last valid period so the cycle starting after this is ignored
             lastValidPeriod = null;
         } else {
             if (lastValidPeriod !== null) {
@@ -243,9 +237,22 @@ function updateStatistics(periods) {
         statsDiv.innerHTML = `<p>Log at least 2 non-paused periods to see statistics`;
         return;
     }
+
+    // Backported from CMT-Neo: reject absurd outlier gaps (<20 or >45 days,
+    // e.g. missed logs) when at least 2 plausible cycles exist.
+    const NORMAL_MIN = 20;
+    const NORMAL_MAX = 45;
+    const normalLengths = cycleLengths.filter((c) => c >= NORMAL_MIN && c <= NORMAL_MAX);
+    const useRobust = normalLengths.length >= 2;
+    const usableLengths = useRobust ? normalLengths : cycleLengths;
+    
+    if (usableLengths.length < 1) {
+        statsDiv.innerHTML = `<p>Log at least 2 non-paused periods to see statistics`;
+        return;
+    }
     
     // Get the last 12 cycles (or fewer if not enough data)
-    const recentCycles = cycleLengths.slice(-12);
+    const recentCycles = usableLengths.slice(-12);
     
     // Calculate statistics based on recent cycles only
     // Total cycles is the number of period entries (not the number of cycles between them)
@@ -264,8 +271,20 @@ function updateStatistics(periods) {
 
     let medianCycleLength;
     let mad;
+    let medianSample;
 
-    if (cycleStability === 'Irregular') {
+    if (useRobust) {
+        // Backported from CMT-Neo: on the plausible subset use a plain robust
+        // median. The legacy 2x recency weighting overreacts after long-gap
+        // spells (e.g. median jumps to 41 on [..,45,41] when the stable
+        // centre is ~35).
+        const sortedCycles = [...recentCycles].sort((a, b) => a - b);
+        const mid = Math.floor(sortedCycles.length / 2);
+        medianCycleLength = sortedCycles.length % 2 === 0
+            ? Math.round((sortedCycles[mid - 1] + sortedCycles[mid]) / 2)
+            : sortedCycles[mid];
+        medianSample = recentCycles;
+    } else if (cycleStability === 'Irregular') {
         const weightedCycles = [];
         
         for (let i = 0; i < recent6.length; i++) {
@@ -283,14 +302,7 @@ function updateStatistics(periods) {
         medianCycleLength = sortedWeighted.length % 2 === 0
             ? Math.round((sortedWeighted[midWeighted - 1] + sortedWeighted[midWeighted]) / 2)
             : sortedWeighted[midWeighted];
-
-        // Calculate MAD based on the weighted cycles and weighted median
-        const deviationsW = weightedCycles.map(cycle => Math.abs(cycle - medianCycleLength));
-        const sortedDeviationsW = [...deviationsW].sort((a, b) => a - b);
-        const devMidW = Math.floor(sortedDeviationsW.length / 2);
-        mad = sortedDeviationsW.length % 2 === 0
-            ? (sortedDeviationsW[devMidW - 1] + sortedDeviationsW[devMidW]) / 2
-            : sortedDeviationsW[devMidW];
+        medianSample = weightedCycles;
     } else {
         // Calculate median cycle length of recent cycles (up to 12 cycles)
         const sortedCycles = [...recentCycles].sort((a, b) => a - b);
@@ -298,18 +310,22 @@ function updateStatistics(periods) {
         medianCycleLength = sortedCycles.length % 2 === 0
             ? Math.round((sortedCycles[mid - 1] + sortedCycles[mid]) / 2)
             : sortedCycles[mid];
-
-        // Calculate MAD based on recent cycles and median
-        const deviations = recentCycles.map(cycle => Math.abs(cycle - medianCycleLength));
-        const sortedDeviations = [...deviations].sort((a, b) => a - b);
-        const devMid = Math.floor(sortedDeviations.length / 2);
-        mad = sortedDeviations.length % 2 === 0
-            ? (sortedDeviations[devMid - 1] + sortedDeviations[devMid]) / 2
-            : sortedDeviations[devMid];
+        medianSample = recentCycles;
     }
 
-    // Predict next period based on median cycle length of recent cycles
-    const lastPeriodDate = parseLocalDate(validPeriods[0].date);
+    // Calculate MAD from the same sample used for the median
+    const deviations = medianSample.map(cycle => Math.abs(cycle - medianCycleLength));
+    const sortedDeviations = [...deviations].sort((a, b) => a - b);
+    const devMid = Math.floor(sortedDeviations.length / 2);
+    mad = sortedDeviations.length % 2 === 0
+        ? (sortedDeviations[devMid - 1] + sortedDeviations[devMid]) / 2
+        : sortedDeviations[devMid];
+
+    // Predict next period based on median cycle length of recent cycles.
+    // Use the most recent non-paused period explicitly (same value as before
+    // when history is newest-first, but robust to input order).
+    const lastValidSorted = [...validPeriods].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
+    const lastPeriodDate = parseLocalDate(lastValidSorted[0].date);
     const nextPeriod = new Date(lastPeriodDate);
     nextPeriod.setDate(lastPeriodDate.getDate() + medianCycleLength);
     
@@ -331,7 +347,7 @@ function updateStatistics(periods) {
         const mostRecentPeriod = [...periods].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date))[0];
         if (!mostRecentPeriod.paused) {
             const today = new Date(); // Local time is default
-            const lastPeriod = parseLocalDate(validPeriods[0].date);
+            const lastPeriod = parseLocalDate(lastValidSorted[0].date);
             // Add 1 to make the first day of the cycle day 1 instead of day 0
             daysInCurrentCycle = Math.floor((today - lastPeriod) / (1000 * 60 * 60 * 24)) + 1;
         }
